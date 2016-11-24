@@ -50,6 +50,10 @@ PerlSwagger - Swagger 2.0 API Service Framework
 
 # DESCRIPTION
 
+<div>
+    <a href="https://travis-ci.org/LittleFox94/PerlSwagger"><img src="https://travis-ci.org/LittleFox94/PerlSwagger.svg?branch=master"></a>
+</div>
+
 PerlSwagger is a simple to use web framework for RESTful webservices described with an OpenAPI 2.0 (formerly known as Swagger 2.0) specification.
 
 The framework parses the specification on startup and creates a PSGI compatible app from it, which can be used with plackup.
