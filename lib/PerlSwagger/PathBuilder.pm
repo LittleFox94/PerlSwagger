@@ -25,12 +25,19 @@ sub build {
         my $path_regex   = $package->make_path_regex($path, $param_object);
         my $x_handler    = $path_spec->{$method}->{'x-handler'};
 
-        my ($pkg, $sub)  = split(/->/, $x_handler);
 
         my $handler;
-        if(defined $pkg && defined $sub) {
-            eval("use $pkg");
-            $handler = $pkg->can($sub);
+        if(defined($x_handler)) {
+            my ($pkg, $sub)  = split(/->/, $x_handler);
+
+            if(defined $pkg && defined $sub) {
+                eval("use $pkg");
+                $handler = $pkg->can($sub);
+            }
+
+            if (!defined($handler)) {
+                warn 'Invalid handler for ' . uc($method) . ' ' . $path;
+            }
         }
 
         push(@routes, {
