@@ -27,8 +27,11 @@ sub build {
 
         my ($pkg, $sub)  = split(/->/, $x_handler);
 
-        eval("use $pkg");
-        my $handler = $pkg->can($sub);
+        my $handler;
+        if(defined $pkg && defined $sub) {
+            eval("use $pkg");
+            $handler = $pkg->can($sub);
+        }
 
         push(@routes, {
             method     => $method,
