@@ -1,7 +1,7 @@
 package PerlSwagger;
 
 use JSON;
-use YAML 'LoadFile';
+use YAML 'LoadFile', 'DumpFile';
 
 use PerlSwagger::PathBuilder;
 
@@ -10,7 +10,9 @@ our $VERSION = 0.001;
 sub to_app {
     my ($package, $spec) = @_;
 
-    my $spec_hash = LoadFile($spec);
+    my $spec_hash = ref($spec) eq 'HASH' ? $spec : LoadFile($spec);
+    $spec_hasn    = _resolve_references($spec_hash);
+
     my $paths     = $spec_hash->{paths};
 
     my @routes = ();
@@ -57,7 +59,7 @@ sub to_app {
 sub _do_route {
     my ($route, $env, $response) = @_;
 
-    my $input = _read_input($env->{'psgi.input'});
+    my $input = _read_input($env->{'psgi.input'}, $env->{CONTENT_LENGTH});
 
     my $input_data = $env->{CONTENT_TYPE} =~ m~^application/json~   ? JSON::decode_json($input)
                    : $env->{CONTENT_TYPE} =~ m~^application/x-yaml~ ? Load($input)
@@ -84,6 +86,12 @@ sub _do_route {
         }
     }
 
+    if(!$route->{parameters}->check_required($params)) {
+        $response->{status} = 422;
+        $response->{body}   = [ 'Required arguments are missing' ];
+        return;
+    }
+
     if($route->{handler}) {
         $response->{status} = 200;
         $response->{body}   = undef;
@@ -108,6 +116,8 @@ sub _do_route {
             $response->{headers} = [
                 'Content-Type' => 'text/plain',
             ];
+
+            warn 'Route threw up: ' . $@;
         }
     }
     else {
@@ -116,18 +126,71 @@ sub _do_route {
 }
 
 sub _read_input {
-    my ($fh) = @_;
+    my ($fh, $cl) = @_;
 
-    my $buffer_size = 8192;
-    my $read_size   = 0;
-    my $data        = '';
+    $fh->seek(0, 0);
+    $fh->read(my $content, $cl, 0);
+    $fh->seek(0, 0);
 
-    do {
-        my $buffer;
-        $read_size = $fh->read($buf, $buffer_size);
+    return $content;
+}
 
-        $data .= $buffer;
-    } while($read_size == $buffer_size);
+sub _resolve_references {
+    my ($hash) = @_;
+
+    my $get_hash_deep = sub {
+        my (@parts) = @_;
+
+        my $current = $hash;
+        for my $part (@parts) {
+            $current = $current->{$part};
+        }
+
+        return $current;
+    };
+
+    my $resolve_sub; $resolve_sub = sub {
+        my ($sub_hash) = @_;
+
+        my $transformed = {};
+
+        for my $key (keys %$sub_hash) {
+            if($key eq '$ref') {
+                my $locator = $sub_hash->{$key};
+
+                if($locator =~ m~#/.*~) {
+                    my (undef, @parts) = split(qr~/~, $locator);
+                    return $get_hash_deep->(@parts);
+                }
+            }
+            else {
+                my $value = $sub_hash->{$key};
+
+                if(ref($value) eq 'HASH') {
+                    $value = $resolve_sub->($value);
+                }
+                elsif(ref($value) eq 'ARRAY') {
+                    $value = [
+                        map {
+                            my $res = $_;
+
+                            if(ref($_) eq 'HASH') {
+                                $res = $resolve_sub->($_);
+                            }
+
+                            $res;
+                        } @$value
+                    ];
+                }
+
+                $transformed->{$key} = $value;
+            }
+        }
+
+        return $transformed;
+    };
+
+    return $resolve_sub->($hash);
 }
 
 1;
@@ -141,8 +204,17 @@ PerlSwagger - Swagger 2.0 API Service Framework
 =head1 SYNOPSIS
 
     use PerlSwagger;
-
     PerlSwagger->to_app('swagger.yml');
+
+=head1 DESCRIPTION
+
+PerlSwagger is a simple to use web framework for RESTful webservices described with an OpenAPI 2.0 (formerly known as Swagger 2.0) specification.
+
+The framework parses the specification on startup and creates a PSGI compatible app from it, which can be used with plackup.
+
+Before calling any route handler, it checks the given parameters and only gives valid ones to the handler. Simple handlers don't have to know they are running as a webservice, as they just get a HashRef containing all the parameters and may return a HashRef as response body.
+
+Handlers for routes are specified with the "x-handler" key in specification, which is something like this "My::Api::Code->handler_sub".
 
 =head1 METHODS
 

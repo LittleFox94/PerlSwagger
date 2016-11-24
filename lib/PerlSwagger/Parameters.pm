@@ -24,10 +24,28 @@ sub new {
     }, $package);
 }
 
+sub check_required {
+    my ($self, $params) = @_;
+
+    my @param_names = map  { $_->{name} }
+                      grep { $_->{required} }
+                      @{$self->{path_params}},
+                      @{$self->{body_params}};
+
+    my $ok = 1;
+    for my $name (@param_names) {
+        if(!exists($params->{$name})) {
+            $ok = 0;
+        }
+    }
+
+    return $ok;
+}
+
 sub validate_param {
     ($self, $name, $value) = @_;
 
-    my ($param_spec) = grep { $_->{name} eq $name } @{$self->{body_params}};
+    my $param_spec = $self->_param_spec_by_name($name);
 
     if(!defined($param_spec)) {
         return -1;
@@ -40,6 +58,56 @@ sub validate_param {
     }
 
     return $validator->($self, $param_spec, $value);
+}
+
+sub filter_params {
+    my ($self, $params) = @_;
+
+    my $transformed_params = {};
+
+    for my $name (keys %$params) {
+        if($self->validate_param($name, $params->{$name})) {
+            my $param_spec = $self->_param_spec_by_name($name);
+
+            if($param_spec->{schema}->{type} eq 'boolean') {
+                $transformed_params->{$name} = $params->{$name} == JSON::true;
+            }
+            else {
+                $transformed_params->{$name} = $params->{$name};
+            }
+        }
+    }
+
+    return $transformed_params;
+}
+
+sub _param_spec_by_name {
+    my ($self, $name) = @_;
+
+    my ($param_spec) = grep { $_->{name} eq $name } @{$self->{body_params}};
+    return $param_spec;
+}
+
+# XXX Complete this sub
+sub _validate_object {
+    my ($self, $param_spec, $value) = @_;
+
+    if(ref($value) != 'HASH') {
+        return 0;
+    }
+
+    return 1;
+}
+
+sub _validate_string {
+    my ($self, $param_spec, $value) = @_;
+
+    if(ref($value) eq '') {
+        return 1;
+    }
+    else {
+        return 0;
+    }
 }
 
 1;
