@@ -1,5 +1,7 @@
 package PerlSwagger::Parameters;
 
+use JSON::Schema;
+
 sub new {
     my ($package, @parameters) = @_;
 
@@ -51,13 +53,29 @@ sub validate_param {
         return -1;
     }
 
-    my $validator = $self->can('_validate_' . $param_spec->{schema}->{type});
+    my $schema = $param_spec->{schema};
 
-    if(!defined($validator)) {
-        die('Unsupported type: ' . $param_spec->{schema}->{type});
+    if(!defined($schema)) {
+        return 1; # no schema => everything is valid
     }
 
-    return $validator->($self, $param_spec, $value);
+    if(!ref($value)) {
+        $value = {
+            x => $value,
+        };
+
+        $schema = {
+            type => 'object',
+            properties => {
+                x => {
+                    schema => $param_spec->{schema},
+                },
+            },
+        };
+    }
+
+    my $validator = JSON::Schema->new($schema);
+    return $validator->validate($value) ? 1 : 0;
 }
 
 sub filter_params {
@@ -70,7 +88,7 @@ sub filter_params {
             my $param_spec = $self->_param_spec_by_name($name);
 
             if($param_spec->{schema}->{type} eq 'boolean') {
-                $transformed_params->{$name} = $params->{$name} == JSON::true;
+                $transformed_params->{$name} = $params->{$name} ? 1 : 0;
             }
             else {
                 $transformed_params->{$name} = $params->{$name};
@@ -86,28 +104,6 @@ sub _param_spec_by_name {
 
     my ($param_spec) = grep { $_->{name} eq $name } @{$self->{body_params}};
     return $param_spec;
-}
-
-# XXX Complete this sub
-sub _validate_object {
-    my ($self, $param_spec, $value) = @_;
-
-    if(ref($value) != 'HASH') {
-        return 0;
-    }
-
-    return 1;
-}
-
-sub _validate_string {
-    my ($self, $param_spec, $value) = @_;
-
-    if(ref($value) eq '') {
-        return 1;
-    }
-    else {
-        return 0;
-    }
 }
 
 1;
