@@ -203,8 +203,49 @@ PerlSwagger - Swagger 2.0 API Service Framework
 
 =head1 SYNOPSIS
 
+=head2 app.psgi
+
+    use lib ".";
     use PerlSwagger;
     PerlSwagger->to_app('swagger.yml');
+
+=head2 swagger.yml
+
+    ---
+    swagger: "2.0"
+    info:
+      version: "1.0.0"
+      title: "Simplest possible example"
+      description: "Just the simplest possible example"
+    consumes:
+      - "application/json"
+    produces:
+      - "application/json"
+    paths:
+      /:
+        get:
+          description: "Hello World, what else?"
+          x-handler: "example::API->index"
+          responses:
+            200:
+              description: "All ok, Hello World!"
+              schema:
+                type: "object"
+                  properties:
+                    message:
+                    type: "string"
+
+=head2 example/API.pm
+
+    package example::API;
+
+    sub index {
+        return {
+            message => "test",
+        };
+    }
+
+    1;
 
 =head1 DESCRIPTION
 
@@ -223,5 +264,19 @@ Handlers for routes are specified with the "x-handler" key in specification, whi
     my $plack_app = to_app($spec_filepath);
 
 Create plack application from swagger spec file.
+
+=head1 LINKS
+
+=over 4
+
+=item GitHub repository:
+
+https://github.com/LittleFox94/PerlSwagger
+
+=item OpenAPI 2.0 specification:
+
+https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md
+
+=back
 
 =cut
