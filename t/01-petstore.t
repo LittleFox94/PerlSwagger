@@ -53,7 +53,7 @@ use utf8;
     }
 }
 
-use Test::More tests => 5;
+use Test::More tests => 7;
 
 use Plack::Test;
 use HTTP::Request::Common;
@@ -91,6 +91,14 @@ subtest 'Get specific pet which is not existing in the store' => sub {
     is($res->code, 404, 'Pet not found as not yet POSTed');
 };
 
+subtest 'Get specific pet with invalid argument as ID' => sub {
+    plan tests => 1;
+
+    my $test = Plack::Test->create($app);
+    my $res  = $test->request(GET '/api/pets/foo');
+    is($res->code, 404, 'Pet with invalid path parameter not found');
+};
+
 subtest 'Add Pet without required arguments' => sub {
     plan tests => 1;
 
@@ -99,13 +107,27 @@ subtest 'Add Pet without required arguments' => sub {
     is($res->code, 422, 'Not giving required params should give 422');
 };
 
+subtest 'Add invalid pet' => sub {
+    plan tests => 1;
+
+    my $test = Plack::Test->create($app);
+    my $res  = $test->request(POST '/api/pets',
+                              Content_Type => 'application/json',
+                              Content      => encode_json(
+                                  {
+                                      name => [ 'foo' ],
+                                  }
+                              ));
+    is($res->code, 422, 'Catched invalid argument');
+};
+
 subtest 'Add pet' => sub {
     plan tests => 2;
 
     my $test = Plack::Test->create($app);
     my $res  = $test->request(POST '/api/pets',
-                            'Content_Type' => 'application/json',
-                            Content => encode_json(
+                            Content_Type => 'application/json',
+                            Content      => encode_json(
                                 {
                                     name => 'Knut',
                                     tag  => 'white, cat, male',
