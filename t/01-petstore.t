@@ -53,10 +53,10 @@ use utf8;
     }
 }
 
-use Test::More tests => 7;
+use Test::More tests => 8;
 
 use Plack::Test;
-use HTTP::Request::Common;
+use HTTP::Request::Common 'GET', 'POST', 'DELETE';
 use JSON 'decode_json', 'encode_json';
 
 use PerlSwagger;
@@ -163,4 +163,13 @@ subtest 'Get specific pet which is existing in the store' => sub {
         },
         'Correct pet returned',
     );
+};
+
+subtest 'Delete pet' => sub {
+    plan tests => 1;
+
+    my $test = Plack::Test->create($app);
+    my $res  = $test->request(DELETE '/api/pets/2');
+
+    is($res->code, 501, 'This method has no handler');
 };

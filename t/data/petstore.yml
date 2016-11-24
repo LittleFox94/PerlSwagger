@@ -74,6 +74,13 @@ paths:
             $ref: "#/definitions/Pet"
         "404":
           description: "There is no pet with the given ID"
+    delete:
+      description: "Delete the given pet from the store"
+      produces:
+        - "application/json"
+      responses:
+        "204":
+          description: "The pet was deleted"
 definitions: 
   Pet: 
     type: "object"
