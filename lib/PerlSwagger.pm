@@ -62,7 +62,6 @@ sub _do_route {
     my $input = _read_input($env->{'psgi.input'}, $env->{CONTENT_LENGTH});
 
     my $input_data = $env->{CONTENT_TYPE} =~ m~^application/json~   ? JSON::decode_json($input)
-                   : $env->{CONTENT_TYPE} =~ m~^application/x-yaml~ ? Load($input)
                    : undef;
 
     my $params = {};
@@ -122,6 +121,12 @@ sub _do_route {
     }
     else {
         warn 'No handler for route "' . uc($route->{method}) . ' ' . $route->{orig_path} . '"';
+
+        $response->{status}  = 501;
+        $response->{body}    = [ 'Not implemented' ],
+        $response->{headers} = [
+            'Content-Type' => 'text/plain',
+        ];
     }
 }
 
